@@ -1,6 +1,6 @@
 import streamlit as st
 import yfinance as yf
-import google.generativeai as genai  # ✅ Gunakan library lama
+import google.generativeai as genai
 
 # 1. Konfigurasi Halaman Streamlit
 st.set_page_config(page_title="Analisis Saham AI", layout="wide")
@@ -12,7 +12,7 @@ if not api_key:
     st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets.")
     st.stop()
 
-# 3. Konfigurasi Gemini (Library Lama)
+# 3. Konfigurasi Gemini
 genai.configure(api_key=api_key)
 
 # 4. Input Ticker Saham dari User
@@ -47,12 +47,11 @@ if st.button("Analisa Saham"):
                 - Nama Perusahaan: {info.get('longName', ticker_input)}
                 - Harga Penutupan Terakhir: {hist['Close'].iloc[-1]}
                 - Sektor: {info.get('sector', 'N/A')}
-                - Ringkasan Bisnis: {info.get('longBusinessSummary', 'Tidak ada deskripsi')[:500]}
                 
-                Berikan analisis singkat mengenai posisi perusahaan ini dan sentimen investasi secara objektif dan mudah dipahami.
+                Berikan analisis singkat mengenai posisi perusahaan ini dan sentimen investasi.
                 """
 
-                # ✅ Panggil Gemini dengan library lama
+                # Panggil Gemini
                 model = genai.GenerativeModel('gemini-pro')
                 response = model.generate_content(prompt)
                 
@@ -61,4 +60,4 @@ if st.button("Analisa Saham"):
                 st.write(response.text)
 
         except Exception as e:
-            st.error(f"️ Terjadi kesalahan saat memproses analisis: {e}")
+            st.error(f"⚠️ Terjadi kesalahan saat memproses analisis: {e}")
