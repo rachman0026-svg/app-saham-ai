@@ -1,6 +1,6 @@
 import streamlit as st
 import yfinance as yf
-from google import genai
+import google.generativeai as genai  # ✅ Gunakan library lama
 
 # 1. Konfigurasi Halaman Streamlit
 st.set_page_config(page_title="Analisis Saham AI", layout="wide")
@@ -12,12 +12,8 @@ if not api_key:
     st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets.")
     st.stop()
 
-# 3. Inisialisasi Gemini Client
-try:
-    client = genai.Client(api_key=api_key)
-except Exception as e:
-    st.error(f"Gagal menginisialisasi Gemini Client: {e}")
-    st.stop()
+# 3. Konfigurasi Gemini (Library Lama)
+genai.configure(api_key=api_key)
 
 # 4. Input Ticker Saham dari User
 ticker_input = st.text_input("Masukkan Kode Saham (contoh: BBCA.JK, TLKM.JK, AAPL):", "BBCA.JK")
@@ -50,20 +46,19 @@ if st.button("Analisa Saham"):
                 Bertindaklah sebagai analis keuangan profesional. Berikut adalah data saham {ticker_input}:
                 - Nama Perusahaan: {info.get('longName', ticker_input)}
                 - Harga Penutupan Terakhir: {hist['Close'].iloc[-1]}
-                - Ringkasan Bisnis: {info.get('longBusinessSummary', 'Tidak ada deskripsi')}
+                - Sektor: {info.get('sector', 'N/A')}
+                - Ringkasan Bisnis: {info.get('longBusinessSummary', 'Tidak ada deskripsi')[:500]}
                 
                 Berikan analisis singkat mengenai posisi perusahaan ini dan sentimen investasi secara objektif dan mudah dipahami.
                 """
 
-                # ✅ PERBAIKAN DI SINI - Ganti nama model yang benar
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash',  # ✅ Hapus "-8b"
-                    contents=prompt
-                )
+                # ✅ Panggil Gemini dengan library lama
+                model = genai.GenerativeModel('gemini-pro')
+                response = model.generate_content(prompt)
                 
                 st.markdown("---")
                 st.subheader("💡 Analisis AI (Gemini)")
                 st.write(response.text)
 
         except Exception as e:
-            st.error(f"⚠️ Terjadi kesalahan saat memproses analisis: {e}")
+            st.error(f"️ Terjadi kesalahan saat memproses analisis: {e}")
