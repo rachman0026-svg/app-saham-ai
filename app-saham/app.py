@@ -1,6 +1,5 @@
 import streamlit as st
 import yfinance as yf
-import google.generativeai as genai
 
 # 1. Konfigurasi Halaman Streamlit
 st.set_page_config(page_title="Analisis Saham AI", layout="wide")
@@ -12,10 +11,7 @@ if not api_key:
     st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets.")
     st.stop()
 
-# 3. Konfigurasi Gemini
-genai.configure(api_key=api_key)
-
-# 4. Input Ticker Saham dari User
+# 3. Input Ticker Saham dari User
 ticker_input = st.text_input("Masukkan Kode Saham (contoh: BBCA.JK, TLKM.JK, AAPL):", "BBCA.JK")
 
 if st.button("Analisa Saham"):
@@ -51,13 +47,33 @@ if st.button("Analisa Saham"):
                 Berikan analisis singkat mengenai posisi perusahaan ini dan sentimen investasi.
                 """
 
-                # Panggil Gemini
-                model = genai.GenerativeModel('gemini-pro')
-                response = model.generate_content(prompt)
+                # ✅ PANGGIL GEMINI API LANGSUNG (tanpa library)
+                import requests
+                import json
+                
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                
+                headers = {
+                    "Content-Type": "application/json"
+                }
+                
+                data = {
+                    "contents": [{
+                        "parts": [{
+                            "text": prompt
+                        }]
+                    }]
+                }
+                
+                response = requests.post(url, headers=headers, json=data)
+                result = response.json()
+                
+                # Ambil teks respons
+                ai_analysis = result['candidates'][0]['content']['parts'][0]['text']
                 
                 st.markdown("---")
                 st.subheader("💡 Analisis AI (Gemini)")
-                st.write(response.text)
+                st.write(ai_analysis)
 
         except Exception as e:
-            st.error(f"⚠️ Terjadi kesalahan saat memproses analisis: {e}")
+            st.error(f"️ Terjadi kesalahan saat memproses analisis: {e}")
