@@ -56,11 +56,10 @@ if st.button("Analisa Saham"):
                 """
 
                 # Panggil API Gemini tanpa config tambahan yang bikin error
-                response = client.models.generate_content
-                (
-                  model='gemini-1.5-flash-8b',
-                    contents=prompt
-                )
+                response = client.models.generate_content(
+    model='gemini-1.5-flash-8b',
+    contents=prompt
+)
                 
                 st.markdown("---")
                 st.subheader("💡 Analisis AI (Gemini)")
