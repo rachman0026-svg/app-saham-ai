@@ -57,7 +57,8 @@ if st.button("Analisa Saham"):
 
                 # Panggil API Gemini tanpa config tambahan yang bikin error
                 response = client.models.generate_content(
-                   model='gemini-2.5-pro',
+                  # GANTI BARIS 60 MENJADI INI:
+                  model='gemini-1.5-flash',
                     contents=prompt
                 )
                 
