@@ -1,69 +1,84 @@
 import streamlit as st
 import yfinance as yf
 from google import genai
+import time
 
-# 1. Konfigurasi Halaman Streamlit
 st.set_page_config(page_title="Analisis Saham AI", layout="wide")
 st.title("📈 Web Analisa Saham AI")
 
-# 2. Ambil API Key dari Streamlit Secrets
+# Inisialisasi session state untuk cache
+if 'cache' not in st.session_state:
+    st.session_state.cache = {}
+
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets.")
+    st.error("⚠️ API Key Gemini belum dikonfigurasi.")
     st.stop()
 
-# 3. Inisialisasi Gemini Client (Library Baru)
 try:
     client = genai.Client(api_key=api_key)
 except Exception as e:
-    st.error(f"Gagal menginisialisasi Gemini Client: {e}")
+    st.error(f"Gagal inisialisasi Gemini: {e}")
     st.stop()
 
-# 4. Input Ticker Saham dari User
-ticker_input = st.text_input("Masukkan Kode Saham (contoh: BBCA.JK, TLKM.JK, AAPL):", "BBCA.JK")
+ticker_input = st.text_input("Masukkan Kode Saham (contoh: BBCA.JK):", "BBCA.JK")
 
 if st.button("Analisa Saham"):
-    with st.spinner("Mengambil data saham dan menganalisis..."):
+    # Cek cache dulu
+    if ticker_input in st.session_state.cache:
+        cached_data = st.session_state.cache[ticker_input]
+        # Jika cache kurang dari 1 jam, gunakan cache
+        if time.time() - cached_data['timestamp'] < 3600:
+            st.info("️ Menggunakan data cache (hemat kuota!)")
+            st.write(cached_data['analysis'])
+            st.stop()
+    
+    with st.spinner("Mengambil data dan menganalisis..."):
         try:
-            # Ambil Data Saham dari Yahoo Finance
             stock = yf.Ticker(ticker_input)
             hist = stock.history(period="1mo")
             info = stock.info
 
             if hist.empty:
-                st.error("❌ Data saham tidak ditemukan. Pastikan kodenya benar (misal pakai '.JK' untuk saham Indonesia).")
+                st.error("❌ Data tidak ditemukan.")
             else:
-                # Tampilkan Ringkasan & Grafik
                 col1, col2 = st.columns(2)
                 with col1:
                     st.subheader("Ringkasan Data")
-                    st.write(f"**Nama Perusahaan:** {info.get('longName', ticker_input)}")
-                    st.write(f"**Harga Terakhir:** Rp {hist['Close'].iloc[-1]:,.2f}")
+                    st.write(f"**Nama:** {info.get('longName', ticker_input)}")
+                    st.write(f"**Harga:** Rp {hist['Close'].iloc[-1]:,.2f}")
                     st.write(f"**Sektor:** {info.get('sector', 'N/A')}")
                 
                 with col2:
-                    st.subheader("Grafik Penutupan 1 Bulan")
+                    st.subheader("Grafik 1 Bulan")
                     st.line_chart(hist['Close'])
 
-                # Susun Prompt untuk Gemini AI
-                prompt = f"""
-                Bertindaklah sebagai analis keuangan profesional. Berikut adalah data saham {ticker_input}:
-                - Nama Perusahaan: {info.get('longName', ticker_input)}
-                - Harga Penutupan Terakhir: {hist['Close'].iloc[-1]}
-                - Sektor: {info.get('sector', 'N/A')}
-                
-                Berikan analisis singkat mengenai posisi perusahaan ini dan sentimen investasi dalam bahasa Indonesia.
-                """
+                prompt = f"Analisis saham {ticker_input} harga {hist['Close'].iloc[-1]} sektor {info.get('sector', 'N/A')}"
 
-                # ✅ GUNAKAN MODEL TERBARU (gemini-2.0-flash)
-                response = client.models.generate_content(
-                    model='gemini-2.0-flash',
-                    contents=prompt
-                )
-                
-                st.markdown("---")
-                st.subheader("💡 Analisis AI (Gemini)")
-                st.write(response.text)
+                # Panggil API dengan error handling untuk quota
+                try:
+                    response = client.models.generate_content(
+                        model='gemini-2.0-flash',
+                        contents=prompt
+                    )
+                    analysis = response.text
+                    
+                    # Simpan ke cache
+                    st.session_state.cache[ticker_input] = {
+                        'analysis': analysis,
+                        'timestamp': time.time()
+                    }
+                    
+                    st.markdown("---")
+                    st.subheader("💡 Analisis AI")
+                    st.write(analysis)
+                    
+                except Exception as api_error:
+                    if "429" in str(api_error) or "RESOURCE_EXHAUSTED" in str(api_error):
+                        st.error("️ Kuota API habis! Tunggu 1-2 menit atau gunakan API key baru.")
+                        st.info("💡 Tips: Hasil analisis akan di-cache selama 1 jam untuk hemat kuota.")
+                    else:
+                        st.error(f"Error: {api_error}")
 
         except Exception as e:
-            st.error(f"⚠️ Terjadi kesalahan saat memproses analisis: {e}")
+            st.error(f"⚠️ Error: {e}")
