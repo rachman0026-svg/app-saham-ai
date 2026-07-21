@@ -1,7 +1,6 @@
 import streamlit as st
 import yfinance as yf
-import requests
-import json
+from google import genai
 
 # 1. Konfigurasi Halaman Streamlit
 st.set_page_config(page_title="Analisis Saham AI", layout="wide")
@@ -13,7 +12,14 @@ if not api_key:
     st.error("⚠️ API Key Gemini belum dikonfigurasi di Streamlit Secrets.")
     st.stop()
 
-# 3. Input Ticker Saham dari User
+# 3. Inisialisasi Gemini Client (Library Baru)
+try:
+    client = genai.Client(api_key=api_key)
+except Exception as e:
+    st.error(f"Gagal menginisialisasi Gemini Client: {e}")
+    st.stop()
+
+# 4. Input Ticker Saham dari User
 ticker_input = st.text_input("Masukkan Kode Saham (contoh: BBCA.JK, TLKM.JK, AAPL):", "BBCA.JK")
 
 if st.button("Analisa Saham"):
@@ -49,49 +55,15 @@ if st.button("Analisa Saham"):
                 Berikan analisis singkat mengenai posisi perusahaan ini dan sentimen investasi dalam bahasa Indonesia.
                 """
 
-                # Panggil Gemini API
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                # ✅ GUNAKAN MODEL TERBARU (gemini-2.0-flash)
+                response = client.models.generate_content(
+                    model='gemini-2.0-flash',
+                    contents=prompt
+                )
                 
-                headers = {
-                    "Content-Type": "application/json"
-                }
-                
-                data = {
-                    "contents": [{
-                        "parts": [{
-                            "text": prompt
-                        }]
-                    }]
-                }
-                
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-                
-                # Cek jika response error
-                if response.status_code != 200:
-                    st.error(f"❌ API Error: {response.status_code} - {response.text}")
-                else:
-                    result = response.json()
-                    
-                    # Error handling yang lebih baik
-                    if 'candidates' in result and len(result['candidates']) > 0:
-                        if 'content' in result['candidates'][0] and 'parts' in result['candidates'][0]['content']:
-                            ai_analysis = result['candidates'][0]['content']['parts'][0]['text']
-                            
-                            st.markdown("---")
-                            st.subheader("💡 Analisis AI (Gemini)")
-                            st.write(ai_analysis)
-                        else:
-                            st.error("️ Respons API tidak memiliki bagian content.")
-                            st.json(result)
-                    else:
-                        st.error("⚠️ API tidak mengembalikan analisis. Mungkin prompt terlalu panjang atau API key bermasalah.")
-                        st.json(result)
+                st.markdown("---")
+                st.subheader("💡 Analisis AI (Gemini)")
+                st.write(response.text)
 
-        except requests.exceptions.Timeout:
-            st.error("⚠️ Request timeout. Silakan coba lagi.")
-        except requests.exceptions.RequestException as e:
-            st.error(f"⚠️ Network error: {e}")
         except Exception as e:
             st.error(f"⚠️ Terjadi kesalahan saat memproses analisis: {e}")
-            import traceback
-            st.error(traceback.format_exc())
