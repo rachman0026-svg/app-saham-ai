@@ -55,11 +55,11 @@ if st.button("Analisa Saham"):
                 Berikan analisis singkat mengenai posisi perusahaan ini dan sentimen investasi secara objektif dan mudah dipahami.
                 """
 
-                # Panggil API Gemini tanpa config tambahan yang bikin error
+                # ✅ PERBAIKAN DI SINI - Ganti nama model yang benar
                 response = client.models.generate_content(
-    model='gemini-1.5-flash-8b',
-    contents=prompt
-)
+                    model='gemini-1.5-flash',  # ✅ Hapus "-8b"
+                    contents=prompt
+                )
                 
                 st.markdown("---")
                 st.subheader("💡 Analisis AI (Gemini)")
