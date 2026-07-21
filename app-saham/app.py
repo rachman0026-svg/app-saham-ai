@@ -1,5 +1,7 @@
 import streamlit as st
 import yfinance as yf
+import requests
+import json
 
 # 1. Konfigurasi Halaman Streamlit
 st.set_page_config(page_title="Analisis Saham AI", layout="wide")
@@ -44,13 +46,10 @@ if st.button("Analisa Saham"):
                 - Harga Penutupan Terakhir: {hist['Close'].iloc[-1]}
                 - Sektor: {info.get('sector', 'N/A')}
                 
-                Berikan analisis singkat mengenai posisi perusahaan ini dan sentimen investasi.
+                Berikan analisis singkat mengenai posisi perusahaan ini dan sentimen investasi dalam bahasa Indonesia.
                 """
 
-                # ✅ PANGGIL GEMINI API LANGSUNG (tanpa library)
-                import requests
-                import json
-                
+                # Panggil Gemini API
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                 
                 headers = {
@@ -65,15 +64,34 @@ if st.button("Analisa Saham"):
                     }]
                 }
                 
-                response = requests.post(url, headers=headers, json=data)
-                result = response.json()
+                response = requests.post(url, headers=headers, json=data, timeout=30)
                 
-                # Ambil teks respons
-                ai_analysis = result['candidates'][0]['content']['parts'][0]['text']
-                
-                st.markdown("---")
-                st.subheader("💡 Analisis AI (Gemini)")
-                st.write(ai_analysis)
+                # Cek jika response error
+                if response.status_code != 200:
+                    st.error(f"❌ API Error: {response.status_code} - {response.text}")
+                else:
+                    result = response.json()
+                    
+                    # Error handling yang lebih baik
+                    if 'candidates' in result and len(result['candidates']) > 0:
+                        if 'content' in result['candidates'][0] and 'parts' in result['candidates'][0]['content']:
+                            ai_analysis = result['candidates'][0]['content']['parts'][0]['text']
+                            
+                            st.markdown("---")
+                            st.subheader("💡 Analisis AI (Gemini)")
+                            st.write(ai_analysis)
+                        else:
+                            st.error("️ Respons API tidak memiliki bagian content.")
+                            st.json(result)
+                    else:
+                        st.error("⚠️ API tidak mengembalikan analisis. Mungkin prompt terlalu panjang atau API key bermasalah.")
+                        st.json(result)
 
+        except requests.exceptions.Timeout:
+            st.error("⚠️ Request timeout. Silakan coba lagi.")
+        except requests.exceptions.RequestException as e:
+            st.error(f"⚠️ Network error: {e}")
         except Exception as e:
-            st.error(f"️ Terjadi kesalahan saat memproses analisis: {e}")
+            st.error(f"⚠️ Terjadi kesalahan saat memproses analisis: {e}")
+            import traceback
+            st.error(traceback.format_exc())
